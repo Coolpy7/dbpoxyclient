@@ -63,6 +63,10 @@
         reader.onload = function () {
             var self = this;
             var bytesArray = new Uint8Array(self.result);
+            if (bytesArray.length > (1024 * 1024)){
+                alert("基于浏览器兼容问题，建议使用1m以下大小的文件做上传测试")
+                return
+            }
             var buffer = msgpack.encode({
                 "db_name":"gridfs",
                 "table_name":"fs",
