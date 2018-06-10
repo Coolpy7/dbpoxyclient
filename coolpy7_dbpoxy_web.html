@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Coolpy dbpoxy file upload demo</title>
+    <script src="paho-mqtt.js" type="text/javascript"></script>
+    <script src="msgpack.js" type="text/javascript"></script>
+</head>
+<body>
+<button onclick="dis()">断开</button>
+<button onclick="connect()">连接</button>
+<button onclick="DelImage()">删除文件</button>
+<img id="pic"/>
+<input id="upload1" type="file"/>
+<div id="result"></div>
+<script type="application/javascript">
+    //增加全局hex转string函数
+    Array.prototype.toHexString = ArrayBuffer.prototype.toHexString = function () {
+        var array = new Uint8Array(this);
+        var hex = '';
+        for (var i = 0; i < array.length; ++i) {
+            var c = array[i].toString('16');
+            hex += c.length === 1 ? '0' + c : c;
+        }
+        return hex;
+    };
+    // Create a client instance
+    client = new Paho.MQTT.Client("127.0.0.1", Number(8080), "/", "clientId");
+    // set callback handlers
+    client.onConnectionLost = onConnectionLost;
+    client.onMessageArrived = onMessageArrived;
+    client.onConnected = function () {
+        message = new Paho.MQTT.Message("Hello Coolpy7");
+        message.destinationName = "dbpoxy/mongodb/result";
+        client.send(message);
+    };
+
+    // called when the client connects
+    function onConnect() {
+        client.subscribe("dbpoxy/mongodb/result", {qos: 0});
+        client.subscribe("dbpoxy/oss/result", {qos: 0});
+    }
+
+    // called when the client connects
+    function DelImage() {
+        message = new Paho.MQTT.Message(JSON.stringify({
+            "db_name":"gridfs",
+            "table_name":"fs",
+            "op_name":"delete",
+            "token":"password",
+            "msg_id":1,
+            "ref_topic":"dbpoxy/oss/result",
+            "ref_qos":0,
+            "filter_id":"5b0a657753c613ce2391b2be"
+        }));
+        message.destinationName = "dbpoxy/mongodb/get";
+        client.send(message);
+    }
+
+    document.querySelector('input').addEventListener('change', function () {
+        var reader = new FileReader();
+        reader.fileName = document.querySelector('input').files[0].name;
+        reader.onload = function () {
+            var self = this;
+            var bytesArray = new Uint8Array(self.result);
+            var buffer = msgpack.encode({
+                "db_name":"gridfs",
+                "table_name":"fs",
+                "op_name":"insert",
+                "token":"password",
+                "msg_id":1,
+                "ref_topic":"dbpoxy/mongodb/result",
+                "ref_qos":0,
+                "oss_file_name":self.fileName,
+                //以base64格式上传文件（有文件大小限制）
+                //"oss_file_base64":btoa(String.fromCharCode.apply(null, bytesArray))
+                //以节点流上传文件（可上传大文件）
+                "oss_file_hex":bytesArray.buffer
+            });
+            message = new Paho.MQTT.Message(buffer);
+            message.destinationName = "dbpoxy/mongodb/get";
+            client.send(message);
+        };
+        reader.readAsArrayBuffer(this.files[0]);
+    }, false);
+
+    // called when the client loses its connection
+    function onConnectionLost(responseObject) {
+        if (responseObject.errorCode !== 0) {
+            console.log("onConnectionLost:" + responseObject.errorMessage);
+        }
+    }
+
+    // called when a message arrives
+    function onMessageArrived(message) {
+        console.log("onMessageArrived:" + message.payloadString);
+    }
+
+    function connect() {
+        // connect the client
+        client.connect({onSuccess: onConnect, cleanSession: true, useSSL: false, reconnect: true, keepAliveInterval: 30});
+    }
+
+    function dis() {
+        if (client.isConnected()) {
+            client.disconnect()
+            console.log("disconnected")
+        } else {
+            console.log("client is disconnected")
+        }
+    }
+</script>
+</body>
+</html>
