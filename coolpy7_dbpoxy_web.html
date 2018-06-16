@@ -60,30 +60,34 @@
     document.querySelector('input').addEventListener('change', function () {
         var reader = new FileReader();
         reader.fileName = document.querySelector('input').files[0].name;
-        reader.onload = function () {
+        reader.onload = function (res) {
             var self = this;
             var bytesArray = new Uint8Array(self.result);
-            if (bytesArray.length > (1024 * 1024)){
+            if (bytesArray.length > (2 * 1024 * 1024)){
                 alert("基于浏览器兼容问题，建议使用1m以下大小的文件做上传测试")
-                return
+                window.location.reload(false);
             }
-            var buffer = msgpack.encode({
-                "db_name":"gridfs",
-                "table_name":"fs",
-                "op_name":"insert",
-                "token":"password",
-                "msg_id":1,
-                "ref_topic":"dbpoxy/mongodb/result",
-                "ref_qos":0,
-                "oss_file_name":self.fileName,
-                //以base64格式上传文件（有文件大小限制）
-                //"oss_file_base64":btoa(String.fromCharCode.apply(null, bytesArray))
-                //以节点流上传文件（可上传大文件）
-                "oss_file_hex":bytesArray.buffer
-            });
-            message = new Paho.MQTT.Message(buffer);
-            message.destinationName = "dbpoxy/mongodb/get";
-            client.send(message);
+            if (client.isConnected()){
+                var buffer = msgpack.encode({
+                    "db_name":"gridfs",
+                    "table_name":"fs",
+                    "op_name":"insert",
+                    "token":"password",
+                    "msg_id":1,
+                    "ref_topic":"dbpoxy/mongodb/result",
+                    "ref_qos":0,
+                    "oss_file_name":self.fileName,
+                    //以base64格式上传文件（有文件大小限制）
+                    //"oss_file_base64":btoa(String.fromCharCode.apply(null, bytesArray))
+                    //以节点流上传文件（可上传大文件）
+                    "oss_file_hex":bytesArray.buffer
+                });
+                message = new Paho.MQTT.Message(buffer);
+                message.destinationName = "dbpoxy/mongodb/get";
+                client.send(message);
+            }else {
+                console.log("not connected")
+            }
         };
         reader.readAsArrayBuffer(this.files[0]);
     }, false);
