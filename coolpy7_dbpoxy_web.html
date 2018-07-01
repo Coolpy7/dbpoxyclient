@@ -37,8 +37,8 @@
 
     // called when the client connects
     function onConnect() {
-        client.subscribe("dbpoxy/mongodb/result", {qos: 0});
-        client.subscribe("dbpoxy/oss/result", {qos: 0});
+        client.subscribe("dbpoxy/mongodb/result", {qos: 1});
+        client.subscribe("dbpoxy/oss/result", {qos: 1});
     }
 
     // called when the client connects
@@ -75,7 +75,7 @@
                     "token":"password",
                     "msg_id":1,
                     "ref_topic":"dbpoxy/mongodb/result",
-                    "ref_qos":0,
+                    "ref_qos":1,
                     "oss_file_name":self.fileName,
                     //以base64格式上传文件（有文件大小限制）
                     //"oss_file_base64":btoa(String.fromCharCode.apply(null, bytesArray))
@@ -84,6 +84,7 @@
                 });
                 message = new Paho.MQTT.Message(buffer);
                 message.destinationName = "dbpoxy/mongodb/get";
+                message.qos = 1;
                 client.send(message);
             }else {
                 console.log("not connected")
